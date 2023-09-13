@@ -1,6 +1,3 @@
-"""
-Run a rest API exposing the yolov5s object detection model
-"""
 from ultralytics import YOLO
 
 import argparse
@@ -11,16 +8,11 @@ import time
 from flask import Flask, request, send_file
 from flask_cors import CORS
 
-from flask_ngrok import run_with_ngrok
-
 from PIL import Image
 import shutil
 
 app = Flask(__name__)
 CORS(app)
-#run_with_ngrok(app)
-
-#app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB limi
 
 DETECTION_URL = "/yolo/object-detection"
     
@@ -29,8 +21,10 @@ def predictTest():
     if not request.method == "POST":
         return
     
-    request_start = round(time.time() * 1000) #Arrived request ms 
+    #Arrived request ms
+    request_start = round(time.time() * 1000)  
     
+    #In the request body a timestamp is saved to compute RTT
     if request.form:
         request_dict = request.form.to_dict()
         start_timestamp = int(request_dict["timestamp"])
@@ -57,6 +51,7 @@ def predictTest():
         #reopen file 
         image_bytes = open(originFilePath, 'rb').read()
 
+        #Image in PIL
         img = Image.open(io.BytesIO(image_bytes))
         
         #Image original size
@@ -66,10 +61,9 @@ def predictTest():
         #Prediction  
         start_prediction = time.time()  
         try:  
-            model.predict(source=originFilePath, project=directory_res_increment, name="result", save=True, imgsz=320) #, imgsz=320)  # reduce size=320 for faster inference
+            model.predict(source=originFilePath, project=directory_res_increment, name="result", save=True, imgsz=320) #reduce size=320 for faster inference
         except:
             shutil.rmtree(directory_res)
-            #return
         end_prediction = time.time()
         print("Elapsed time prediction [ms]:")
         print((end_prediction - start_prediction)*1000)
@@ -84,7 +78,6 @@ def predictTest():
             shutil.rmtree(directory_res)
             #return
         print("Result bytes: " + str(len(detected_byte_array)))
-        #detected_byte_array = Image.open(os.path.join(directory_res_increment, "result", "origin.jpg"))
         
         #Rescale image
         #newsize = (256, 320)
@@ -104,36 +97,14 @@ def predictTest():
         #buf.seek(0) #Set file postion to 0
 
         return send_file(
-            io.BytesIO(detected_byte_array), #This create a byte string suitable to send.
+            io.BytesIO(detected_byte_array), #This create a byte string suitable to send back.
             mimetype='image/jpg'
         )
     
-@app.route("/test", methods=['GET', 'POST'])
-def getTest():
-    # Images
-    img = "./zidane.jpg" #"https://ultralytics.com/images/zidane.jpg"  # or file, Path, PIL, OpenCV, numpy, list
-
-    # Inference
-    start_prediction = time.time()  
-    model.predict(img)
-    end_prediction = time.time()
-    print("Elapsed time prediction [ms]:")
-    print((end_prediction - start_prediction) * 1000)
-
-    detected_byte_array = open(img, 'rb').read()
-
-    # Results
-    return send_file(
-            io.BytesIO(detected_byte_array),
-            mimetype='image/jpg'
-        )
-
-
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Flask API exposing YOLOv5 model")
+    parser = argparse.ArgumentParser(description="Flask API exposing YOLO model")
     parser.add_argument("--port", default=5000, type=int, help="port number")
     args = parser.parse_args()
 
     model = YOLO('yolov8n.pt')  # force_reload to recache
-    app.run(host="0.0.0.0", port=args.port)  #  ssl_context="adhoc" debug=True causes Restarting with stat
-    #app.run(region="ue")
+    app.run(host="0.0.0.0", port=args.port)  #ssl_context="adhoc" debug=True causes Restarting with stat
